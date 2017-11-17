@@ -22,26 +22,37 @@ def pull_adverbs(f, o, useBracks):
 		else:
 			prev_line += str(' ' + line.strip())
 
+	counts = 0
 	for line in condensed_lines:
 		if len(line) <= 1:
 			continue
 
-		l = line
+		# l = line
 		# l =  line.strip()
 		# l = l.replace('\r', '').replace('\n', ' ')
+
+		patt = '\[.*?\]' if useBracks else '\(.*?\)'
+		matches = re.findall(patt, line)
+
+		if matches and (len(matches[0].split()) == 1  ):
+			counts += 1
+			o.write(str( '[' + matches[0][1:-1] + ']' + " " + line.strip().replace('\r', '').replace('\n', '').replace( matches[0], '') + "\n"))
 		
-		if sdelim in l and l.index(sdelim) > 0:
-			full_line =  line[l.index(sdelim) -1:]
-			words = full_line.split()
+		# if sdelim in l and l.index(sdelim) > 0:
+		# 	full_line =  line[l.index(sdelim) -1:]
+		# 	words = full_line.split()
 
-			if not words:
-				continue
-
-			if words[0].startswith(sdelim) and words[0].endswith(edelim):
-				o.write('[' + str(words[0][1:-1] + ']' + " " + full_line[full_line.index(edelim)+1:].replace('\r', '').replace('\n', '')) + "\n")
-				# o.write(str(words[0] + " " + l +"\n"))
+		# 	if not words:
+		# 		continue
 
 
+
+		# 	if words[0].startswith(sdelim) and words[0].endswith(edelim):
+		# 		o.write('[' + str(words[0][1:-1] + ']' + " " + full_line[full_line.index(edelim)+1:].replace('\r', '').replace('\n', '')) + "\n")
+		# 		# o.write(str(words[0] + " " + l +"\n"))
+		# 		counts += 1
+
+	print f, counts
 	f.close()
 
 def count_adverbs(contents):
