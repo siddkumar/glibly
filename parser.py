@@ -23,13 +23,13 @@ def pull_adverbs(pin, o, useBracks):
             matches = re.findall(patt, line)
 
             for match in matches:
-                if len(match.split()) == 1:
+                line = line.replace(match, '')
+                line = line.strip()
+                line = re.sub('[\r\n]', '', line)
+                match = re.sub('[_\.]', '', match)
+                match = match.lower()
+                if len(match.split()) == 1 and len(match) > 3:
                     counts += 1
-                    line = line.replace(match, '')
-                    line = line.strip()
-                    line = re.sub('[\r\n]', '', line)
-                    match = re.sub('[_\.]', '', match)
-                    match = match.lower()
                     o.write('[%s]\t%s\n' % (match[1:-1], line))
 
         print pin, counts
