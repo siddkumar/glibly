@@ -30,7 +30,7 @@ def pull_adverbs(pin, o, useBracks):
                 match = match.lower()
                 if len(match.split()) == 1 and len(match) > 3:
                     counts += 1
-                    o.write('[%s]\t%s\n' % (match[1:-1], line))
+                    o.write('%s\t%s\n' % (match[1:-1], line))
 
         print pin, counts
 
