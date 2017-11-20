@@ -16,7 +16,8 @@ if __name__ == '__main__':
     for w in sorted(counter.keys()):
         num_w += 1
         total += counter[w]
-        # print w, counter[w]
+        if counter[w] > 50:
+            print w, counter[w]
 
     print num_w, total
 
