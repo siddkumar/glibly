@@ -8,7 +8,9 @@ ILLEGAL_ADVERBS = ['trademark/copyright',
                    'wwwgutenbergnet',
                    'wwwgutenbergorg',
                    '801',
-                   '^y']
+                   '^y',
+                   'rc',
+                   'lc']
 STEMMER = SnowballStemmer('english')
 
 
@@ -39,6 +41,10 @@ def pull_adverbs(input_file, output_fp, brackets=True):
                 # Clean line
                 line = line.strip()
                 line = re.sub('[\r\n_]', '', line)
+                character = re.match('([A-Z]{2,}\s?\.?\s?){1,}', line)
+                if character:
+                    line = line[character.end(0):]
+                line = line.lstrip('.- ')
 
                 # Clean adverb
                 adverb = adverb[1:-1]
