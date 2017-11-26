@@ -14,7 +14,23 @@ ILLEGAL_ADVERBS = ['trademark/copyright',
 STEMMER = SnowballStemmer('english')
 
 
-def pull_adverbs(input_file, output_fp, brackets=True):
+def clean_line(line, brackets):
+    patt = '\[.*?\]' if brackets else '\(.*?\)'
+    matches = re.findall(patt, line)
+
+    for m in matches:
+        line = line.replace(m, '')
+
+    line = line.strip()
+    line = re.sub('[\r\n_]', '', line)
+    character = re.match('([A-Z]{2,}\s?\.?\s?){1,}', line)
+    if character:
+        line = line[character.end(0):]
+    line = line.lstrip('.- ')
+    return line
+
+
+def pull_adverbs(input_file, output_fp, brackets=True, full_context=False):
     with open(input_file) as f:
         all_lines = f.readlines()
         condensed_lines = []
@@ -27,24 +43,16 @@ def pull_adverbs(input_file, output_fp, brackets=True):
                 prev_line += str(' ' + line.strip())
 
         counts = 0
-        for line in condensed_lines:
+        for i, line in enumerate(condensed_lines):
             if len(line) <= 1:
                 continue
 
             patt = '\[.*?\]' if brackets else '\(.*?\)'
             matches = re.findall(patt, line)
 
-            for m in matches:
-                line = line.replace(m, '')
-
             for adverb in matches:
                 # Clean line
-                line = line.strip()
-                line = re.sub('[\r\n_]', '', line)
-                character = re.match('([A-Z]{2,}\s?\.?\s?){1,}', line)
-                if character:
-                    line = line[character.end(0):]
-                line = line.lstrip('.- ')
+                cleaned_line = clean_line(line, brackets)
 
                 # Clean adverb
                 adverb = adverb[1:-1]
@@ -54,8 +62,8 @@ def pull_adverbs(input_file, output_fp, brackets=True):
                 adverb = adverb.replace('\xc3\xab', 'e')
 
                 # Line validation
-                valid = len(line) > 1
-                valid &= bool(line.split())
+                valid = len(cleaned_line) > 1
+                valid &= bool(cleaned_line.split())
 
                 # Adverb validation
                 valid &= len(adverb.split()) == 1
@@ -64,8 +72,13 @@ def pull_adverbs(input_file, output_fp, brackets=True):
 
                 if valid:
                     counts += 1
-                    stemmed_adverb = STEMMER.stem(adverb)
-                    output_fp.write('%s\t%s\n' % (stemmed_adverb.encode('utf-8'), line))
+                    stemmed_adverb = STEMMER.stem(adverb).encode('utf-8')
+                    if full_context:
+                        prev_line = clean_line(condensed_lines[i-1], brackets) if i > 0 else ''
+                        next_line = clean_line(condensed_lines[i+1], brackets)
+                        output_fp.write('%s\t%s\t%s\t%s\n' % (stemmed_adverb, prev_line, cleaned_line, next_line))
+                    else:
+                        output_fp.write('%s\t%s\n' % (stemmed_adverb, cleaned_line))
                     break
 
         print input_file, counts
