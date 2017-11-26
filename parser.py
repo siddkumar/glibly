@@ -1,9 +1,19 @@
 import re
 import os
+from os.path import join
+from nltk.stem import SnowballStemmer
 
 
-def pull_adverbs(pin, o, useBracks):
-    with open(pin) as f:
+ILLEGAL_ADVERBS = ['trademark/copyright',
+                   'wwwgutenbergnet',
+                   'wwwgutenbergorg',
+                   '801',
+                   '^y']
+STEMMER = SnowballStemmer('english')
+
+
+def pull_adverbs(input_file, output_fp, brackets=True):
+    with open(input_file) as f:
         all_lines = f.readlines()
         condensed_lines = []
         prev_line = ""
@@ -19,30 +29,48 @@ def pull_adverbs(pin, o, useBracks):
             if len(line) <= 1:
                 continue
 
-            patt = '\[.*?\]' if useBracks else '\(.*?\)'
+            patt = '\[.*?\]' if brackets else '\(.*?\)'
             matches = re.findall(patt, line)
 
-            for match in matches:
-                line = line.replace(match, '')
-                line = line.strip()
-                line = re.sub('[\r\n]', '', line)
-                match = re.sub('[_\.]', '', match)
-                match = match.lower()
-                if len(match.split()) == 1 and len(match) > 3:
-                    counts += 1
-                    o.write('%s\t%s\n' % (match[1:-1], line))
+            for m in matches:
+                line = line.replace(m, '')
 
-        print pin, counts
+            for adverb in matches:
+                # Clean line
+                line = line.strip()
+                line = re.sub('[\r\n_]', '', line)
+
+                # Clean adverb
+                adverb = adverb[1:-1]
+                adverb = re.sub('[_\.]', '', adverb)
+                adverb = adverb.lower()
+                adverb = adverb.replace('\xc3\xaf', 'i')
+                adverb = adverb.replace('\xc3\xab', 'e')
+
+                # Line validation
+                valid = len(line) > 1
+                valid &= bool(line.split())
+
+                # Adverb validation
+                valid &= len(adverb.split()) == 1
+                valid &= len(adverb) > 1
+                valid &= adverb not in ILLEGAL_ADVERBS
+
+                if valid:
+                    counts += 1
+                    stemmed_adverb = STEMMER.stem(adverb)
+                    output_fp.write('%s\t%s\n' % (stemmed_adverb.encode('utf-8'), line))
+                    break
+
+        print input_file, counts
 
 
 if __name__ == '__main__':
-
-    with open('adverbs.txt', 'w') as adverbs:
+    with open('adverbs.txt', 'w') as adverbs_fp:
         for author in os.listdir('glibs'):
             for play in os.listdir(os.path.join('glibs', author)):
-                bracks = True
-                if (play.endswith('paren')):
-                    bracks = False
-
-                pin = os.path.join('glibs', author, play)
-                pull_adverbs(pin, adverbs, bracks)
+                input_filename = join('glibs', author, play)
+                if play.endswith('paren'):
+                    pull_adverbs(input_filename, adverbs_fp, brackets=False)
+                else:
+                    pull_adverbs(input_filename, adverbs_fp)
