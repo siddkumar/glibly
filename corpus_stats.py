@@ -13,13 +13,16 @@ if __name__ == '__main__':
 
     num_w = 0
     total = 0
+
+    how_many = 0 
     for w in sorted(counter.keys()):
         num_w += 1
         total += counter[w]
-        if counter[w] > 50:
+        if counter[w] >= 50:
+            how_many += 1
             print w, counter[w]
 
-    print num_w, total
+    print how_many, num_w, total
 
     plt.plot(sorted(counter.values(), reverse=True))
     plt.show()

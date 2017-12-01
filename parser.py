@@ -26,7 +26,7 @@ def clean_line(line, brackets):
     character = re.match('([A-Z]{2,}\s?\.?\s?){1,}', line)
     if character:
         line = line[character.end(0):]
-    line = line.lstrip('.- ')
+    line = line.lstrip('.- \t')
     return line
 
 
@@ -75,14 +75,29 @@ def pull_adverbs(input_file, output_fp, brackets=True, full_context=False):
                     stemmed_adverb = STEMMER.stem(adverb).encode('utf-8')
                     if full_context:
                         prev_line = clean_line(condensed_lines[i-1], brackets) if i > 0 else ''
-                        next_line = clean_line(condensed_lines[i+1], brackets)
+                        next_line = clean_line(condensed_lines[i+1], brackets) if i + 1 < len(condensed_lines) else ''
                         output_fp.write('%s\t%s\t%s\t%s\n' % (stemmed_adverb, prev_line, cleaned_line, next_line))
                     else:
                         output_fp.write('%s\t%s\n' % (stemmed_adverb, cleaned_line))
                     break
+        if counts > 0:
+            print input_file, counts
 
-        print input_file, counts
 
+def edit_movie(input_file, output_file):
+    out = open(output_file, 'w')
+
+    with open(input_file, 'r') as infile:
+        for line in infile:
+            stripped_line = line.strip().replace('\t', ' ')
+            if stripped_line.isupper():
+                out.write('\r\n\n')
+                out.write(stripped_line)
+            else:
+                out.write(' ')
+                out.write(stripped_line)
+            
+    out.close()
 
 if __name__ == '__main__':
     with open('adverbs.txt', 'w') as adverbs_fp:
@@ -93,3 +108,27 @@ if __name__ == '__main__':
                     pull_adverbs(input_filename, adverbs_fp, brackets=False)
                 else:
                     pull_adverbs(input_filename, adverbs_fp)
+
+        for file in os.listdir('dialogs-edited'):
+            os.remove(join('dialogs-edited', file))
+        for genre in os.listdir('dialogs'):
+            for movie in os.listdir(os.path.join('dialogs', genre)):
+                input_filename = join('dialogs', genre, movie)
+                output_filename = join('dialogs-edited', movie)
+                if movie in os.listdir('dialogs-edited'):
+                    continue
+                edit_movie(input_filename, output_filename)
+                pull_adverbs(output_filename, adverbs_fp, brackets=False)
+                
+
+
+
+
+
+
+
+
+
+
+
+
