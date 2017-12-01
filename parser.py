@@ -10,7 +10,36 @@ ILLEGAL_ADVERBS = ['trademark/copyright',
                    '801',
                    '^y',
                    'rc',
-                   'lc']
+                   'lc',
+                   'oc',
+                   'v/o',
+                   'v0',
+                   'vfx-i',
+                   'vfx-p',
+                   'vo',
+                   'voice',
+                   'subtitle',
+                   'overlap',
+                   'os',
+                   'offscreen',
+                   'off-screen',
+                   'off',
+                   'cont',
+                   'cont\'d',
+                   'con\'t',
+                   'contd',
+                   'contid',
+                   'continued', 'continuing',
+                   '0s',
+                   '1966',
+                   '1974',
+                   'viet/subtitle', 'subtitled',
+                   'tv',
+                   'o/'
+                   'hick!', 'nina', 'salmon', 'subtitles',
+                   'b\%w', 'etc',
+                   '1947', '1949', '1954', '1955', '1965', '1968', '1972', '1973', 'a1', '2', '3', '40', '7/19/2012', '10', 'conttnttfd'
+                   ]
 STEMMER = SnowballStemmer('english')
 
 
@@ -105,9 +134,9 @@ if __name__ == '__main__':
             for play in os.listdir(os.path.join('glibs', author)):
                 input_filename = join('glibs', author, play)
                 if play.endswith('paren'):
-                    pull_adverbs(input_filename, adverbs_fp, brackets=False)
+                    pull_adverbs(input_filename, adverbs_fp, brackets=False, full_context=False)
                 else:
-                    pull_adverbs(input_filename, adverbs_fp)
+                    pull_adverbs(input_filename, adverbs_fp, full_context=False)
 
         for file in os.listdir('dialogs-edited'):
             os.remove(join('dialogs-edited', file))
@@ -118,7 +147,7 @@ if __name__ == '__main__':
                 if movie in os.listdir('dialogs-edited'):
                     continue
                 edit_movie(input_filename, output_filename)
-                pull_adverbs(output_filename, adverbs_fp, brackets=False)
+                pull_adverbs(output_filename, adverbs_fp, brackets=False, full_context=False)
                 
 
 

@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 
-if __name__ == '__main__':
+def get_counter(filename, verbose=False):
     counter = {}
-    with open('adverbs.txt', 'r') as adverbs:
+    with open(filename, 'r') as adverbs:
         for line in adverbs:
             word = line.split()[0]
 
@@ -18,11 +18,18 @@ if __name__ == '__main__':
     for w in sorted(counter.keys()):
         num_w += 1
         total += counter[w]
-        if counter[w] >= 50:
+        if counter[w] >= 100:
             how_many += 1
-            print w, counter[w]
+            if verbose:
+                print w, counter[w]
 
-    print how_many, num_w, total
+    if verbose:
+        print how_many, num_w, 
 
-    plt.plot(sorted(counter.values(), reverse=True))
-    plt.show()
+    return counter
+
+    # plt.plot(sorted(counter.values(), reverse=True))
+    # plt.show()
+
+if __name__ == '__main__':
+    get_counter('adverbs.txt', verbose=True)

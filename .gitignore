@@ -1,7 +1,9 @@
 .DS_Store
 glibs/
 adverbs.txt
-adverbs_expanded.txt
+adverbs*.txt
+dialogs/
+dialogs-edited/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
