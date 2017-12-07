@@ -1,56 +1,48 @@
+from __future__ import division
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import LinearSVC
 
-# vectorizer = CountVectorizer(min_df=2, analyzer='char', ngram_range=(2,3))
-vectorizer = CountVectorizer(min_df=2, analyzer='word', ngram_range=(1,1))
+from corpus_stats import get_counter
+import re
+import string
 
-with open('adverbs.txt') as input_file:
-    data = input_file.readlines()
+vectorizer = CountVectorizer(min_df=2, analyzer='char', ngram_range=(2,3))
+# vectorizer = CountVectorizer(min_df=2, analyzer='word', ngram_range=(1,1))
 
 labels = []
 examples = []
 
-# label_set = ['angrily', 'anxiously', 'bitterly', 'bowing', 'coldly', 'continuing', 'eagerly', 'excitedly', 'frightened', 'impatiently', 'indignantly', 'laughing', 'laughs', 'nervously', 'nodding', 'quickly', 'rising', 'sadly', 'severely', 'sharply', 'shouts', 'sighs', 'slowly', 'smiling', 'softly', 'startled', 'sternly', 'surprised', 'thoughtfully', 'weeping']
-# min_label_count = 20
-
-# label_set = ['angrily', 'bitterly', 'eagerly', 'impatiently', 'indignantly', 'laughing', 'nodding', 'rising', 'sadly', 'smiling', 'surprised']
-# min_label_count = 30
-
-label_set = ['angrili', 'laugh', 'nod', 'smile']
-min_label_count = 200
 
 
 
+filename = 'adverbs.txt'
+with open(filename) as input_file:
+    counter = get_counter(filename)
+    data = input_file.readlines()
 
-label_counts = [1] * len(label_set)
-print "Num of labels: ", len(label_set)
-print "Random Guessing: ", 1.0/len(label_set)
 
-for ex in data:
-    label, prev_line, line, next_line = ex.split('\t')
-    line = ' '.join([prev_line, line, next_line])
-    # label, line = ex.split('\t')
+for item in data:
+    label, sentence = item.split('\t')
+    if not label in counter or counter[label] < 10:
+        continue
 
-    if label in label_set:
-        label_idx = label_set.index(label)
+    orig_sentence = sentence.decode('utf-8')
+    sentence = orig_sentence.lower()
+    sentence = re.sub('[' + string.punctuation + ']' , '', sentence)
 
-        if label_counts[label_idx] <= min_label_count:
-            label_counts[label_idx] = label_counts[label_idx] + 1
-            labels.append(label_idx)
-            examples.append(line)
+    stylometric_features = []
+    scale = float(len(orig_sentence))
+    for c in string.punctuation:
+        stylometric_features.append(orig_sentence.count(c) / scale)
 
-    # if label == 'nodding':
-    #     labels.append(1)
-    #     examples.append(line)
-    # elif label == 'aside':
-    #     labels.append(0)
-    #     examples.append(line)
-    # elif label == 'smiling':
-    #     labels.append(2)
-    #     examples.append(line)
+    labels.append(label)
+    examples.append(stylometric_features)
 
-training_matrix = vectorizer.fit_transform(examples)
+print "Number of examples: ", len(examples)
+# training_matrix = vectorizer.fit_transform(examples)
+training_matrix = examples
+print "Dilily Dilly"
 
 clf = LinearSVC()
 cv_score = cross_val_score(clf, training_matrix, labels, cv=5).mean()

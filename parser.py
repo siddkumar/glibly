@@ -7,6 +7,7 @@ from nltk.stem import SnowballStemmer
 ILLEGAL_ADVERBS = ['trademark/copyright',
                    'wwwgutenbergnet',
                    'wwwgutenbergorg',
+                   'beat', 'pause', 'beats', 'pauses', 'paused', 
                    '801',
                    '^y',
                    'rc',
