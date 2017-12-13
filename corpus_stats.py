@@ -18,7 +18,7 @@ def get_counter(filename, verbose=False):
     for w in sorted(counter.keys()):
         num_w += 1
         total += counter[w]
-        if counter[w] >= 100:
+        if counter[w] >= 10:
             how_many += 1
             if verbose:
                 print w, counter[w]

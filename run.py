@@ -16,8 +16,8 @@ embedding_dim = 300
 percent_training = 0.9
 WORD_VEC_FILE = '/Users/quinnmac/Documents/00-Documents-Archive/College Senior Year/'\
                 'Semester 2/NLP/Final Project/GoogleNews-vectors-negative300.bin'
+WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/GoogleNews-vectors-negative300.bin'
 # WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/trained_vectors.bin'
-
 
 def run_experiment(model_name):
     with open(filename) as input_file:
