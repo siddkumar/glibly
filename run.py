@@ -82,6 +82,7 @@ def run_experiment(model_name):
 
     # Partition the data
     shuffled_idxs = range(num_examples)
+    np.random.seed(42)
     np.random.shuffle(shuffled_idxs)
     num_training = int(percent_training*num_examples)
 
