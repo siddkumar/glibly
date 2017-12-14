@@ -1,55 +1,60 @@
 from __future__ import division
-from corpus_stats import get_counter
 
-from gensim.models.keyedvectors import KeyedVectors
-from nltk.tokenize import word_tokenize
-
+from sklearn.metrics import accuracy_score, confusion_matrix
 import numpy as np
 import tensorflow as tf
 
+
 def dan(train_examples, train_labels, test_examples, test_labels, num_labels, embedding_dim):
+    train_mat = [ex[0] for ex in train_examples]
+    stylo_train_mat = [ex[1] for ex in train_examples]
+    test_mat = [ex[0] for ex in test_examples]
+    stylo_test_mat = [ex[1] for ex in test_examples]
+
     inputs = tf.placeholder(tf.float32, embedding_dim)
-    w = tf.get_variable('w', [num_labels, embedding_dim], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-    z = tf.tensordot(w, inputs, 1)
+    stylo_inputs = tf.placeholder(tf.float32, 32)
+    full_inputs = tf.concat([inputs, stylo_inputs], 0)
+    w = tf.get_variable('w', [num_labels, embedding_dim + 32], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+    z = tf.tensordot(w, full_inputs, 1)
     probs = tf.nn.softmax(z)
     one_best = tf.argmax(probs)
     label = tf.placeholder(tf.int32, 1)
     label_onehot = tf.reshape(tf.one_hot(label, num_labels), shape=[num_labels])
     loss = tf.negative(tf.log(tf.tensordot(probs, label_onehot, 1)))
 
-
     global_step = tf.contrib.framework.get_or_create_global_step()
     opt = tf.train.AdamOptimizer()
     train_op = opt.minimize(loss, global_step=global_step)
 
     init = tf.global_variables_initializer()
-    num_epochs = 10
+    num_epochs = 20
 
     with tf.Session() as sess:
         # Generally want to determinize training as much as possible
         tf.set_random_seed(0)
         # Initialize variables
         sess.run(init)
-        step_idx = 0
         for i in range(0, num_epochs):
             loss_this_iter = 0
             # batch_size of 1 here; if we want bigger batches, we need to build our network appropriately
             for ex_idx in xrange(0, len(train_examples)):
                 # sess.run generally evaluates variables in the computation graph given inputs. "Evaluating" train_op
                 # causes training to happen
-                [_, loss_this_instance] = sess.run([train_op, loss], feed_dict = {inputs: np.mean(train_examples[ex_idx], axis=0),
-                                                                                  label: np.array([train_labels[ ex_idx]])})
+                [_, loss_this_instance] = sess.run([train_op, loss], feed_dict={inputs: np.mean(train_mat[ex_idx], axis=0),
+                                                                                stylo_inputs: stylo_train_mat[ex_idx],
+                                                                                label: np.array([train_labels[ex_idx]])})
                 loss_this_iter += loss_this_instance
             print "Loss for iteration " + repr(i) + ": " + repr(loss_this_iter)
 
-            correct = 0.0
-            num_test_examples = len(test_examples)
-            for ex_idx in xrange(num_test_examples):
-                [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict = {inputs: np.mean(test_examples[ex_idx], axis=0)})
-                if pred_this_instance == test_labels[ex_idx]:
-                    correct += 1.0
+            preds = []
+            for ex_idx in xrange(len(test_examples)):
+                [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict={inputs: np.mean(test_mat[ex_idx], axis=0),
+                                                                                                   stylo_inputs: stylo_test_mat[ex_idx]})
+                preds.append(pred_this_instance)
 
-            print "Test Accuracy:", correct/num_test_examples
+            print "Dev Accuracy: " + str(accuracy_score(test_labels, preds))
+            print confusion_matrix(test_labels, preds)
+
 
 def pad_to_length(np_arr, length):
     result = np.zeros((length, 300))
@@ -66,8 +71,9 @@ def generate_batches(examples, labels, batch_size):
         batches.append((examples[i:i+batch_size], labels[i:i+batch_size]))
     return batches
 
+
 def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
-    seq_max_len = 60
+    seq_max_len = 20
     train_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
     train_labels_mat = np.array(train_labels)
     test_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
@@ -76,10 +82,10 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
 
     # Hyperparams
     num_epochs = 20
-    batch_size = 100
+    batch_size = 10
     filter_widths = [3, 4, 5]
     filters_per_region = 100
-    num_filters = 300
+    num_filters = filters_per_region * len(filter_widths)
 
     # Network
     stylo_inputs = tf.placeholder(tf.float32, [None, 32])
@@ -90,12 +96,12 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
     feature_vector = []
     for f in filter_widths:
         filters = tf.get_variable("filters_%d" % f, [f, embedding_size, 1, filters_per_region], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-        conv1 = tf.nn.conv2d(conv1_inputs, filters, [1,1,1,1], 'VALID')
+        conv1 = tf.nn.conv2d(conv1_inputs, filters, [1, 1, 1, 1], 'VALID')
         bias = tf.get_variable("bias_%d" % f, [conv1.shape[-1]], initializer=tf.contrib.layers.xavier_initializer(seed=0))
         biased_conv = tf.nn.relu(tf.nn.bias_add(conv1, bias))
-        pool1 = tf.nn.max_pool(biased_conv, [1, seq_max_len-f+1, 1, 1], [1,1,1,1], 'VALID')
+        pool1 = tf.nn.max_pool(biased_conv, [1, seq_max_len-f+1, 1, 1], [1, 1, 1, 1], 'VALID')
         feature_vector.append(pool1)
-    
+
     feature_vector = tf.concat(feature_vector, 3)
     feature_vector = tf.reshape(feature_vector, (-1, num_filters))
     feature_vector = tf.nn.dropout(feature_vector, dropout_rate)
@@ -113,9 +119,8 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
     global_step = tf.contrib.framework.get_or_create_global_step()
     opt = tf.train.AdamOptimizer()
     train_op = opt.minimize(loss, global_step=global_step)
-    
-    init = tf.global_variables_initializer()
 
+    init = tf.global_variables_initializer()
 
     with tf.Session() as sess:
         tf.set_random_seed(0)
@@ -135,22 +140,16 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
                 loss_this_iter += loss_this_instance
             print "Loss for iteration " + repr(i) + ": " + repr(loss_this_iter)
 
-            correct = 0.0
+            preds = []
+            for ex_idx in xrange(len(test_examples)):
+                [_, pred_this_instance] = sess.run([probs, one_best], feed_dict={inputs: [test_mat[ex_idx]],
+                                                                                 stylo_inputs: [stylo_test_mat[ex_idx]],
+                                                                                 dropout_rate: 1.0})
+                preds.append(pred_this_instance[0])
 
-            confusion = np.zeros((num_classes, num_classes))
-            num_test_examples = len(test_examples)
-            for ex_idx in xrange(num_test_examples):
-                [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict = {inputs: [test_mat[ex_idx]], 
-                                                                                                     stylo_inputs: [stylo_test_mat[ex_idx]],
-                                                                                                     dropout_rate: 1.0})
-                confusion[int(test_labels[ex_idx])][int(pred_this_instance[0])] = confusion[int(test_labels[ex_idx])][int(pred_this_instance[0])] + 1
-                if pred_this_instance[0] == test_labels[ex_idx]:
-                    correct += 1.0
+            print "Dev Accuracy: " + str(accuracy_score(test_labels, preds))
+            print confusion_matrix(test_labels, preds)
 
-            print "Dev Accuracy:", correct/num_test_examples
-            for row in xrange(num_classes):
-                r = [confusion[row][col] for col in xrange(num_classes)]
-                print r
 
 def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
 
@@ -162,8 +161,8 @@ def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, 
     stylo_test_mat = np.asarray([ex[1] for ex in test_examples])
 
     # Hyperparams
-    num_epochs = 20
-    batch_size = 100
+    num_epochs = 10
+    batch_size = 10
     hidden_size = 200
     
     # Network
