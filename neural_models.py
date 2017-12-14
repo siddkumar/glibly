@@ -74,21 +74,22 @@ def generate_batches(examples, labels, batch_size):
 
 def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
     seq_max_len = 20
-    train_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
+    train_mat = np.array([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
     train_labels_mat = np.array(train_labels)
-    test_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
-    stylo_mat = np.asarray([ex[1] for ex in train_examples])
-    stylo_test_mat = np.asarray([ex[1] for ex in test_examples])
+    test_mat = np.array([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
+    stylo_mat = np.array([ex[1] for ex in train_examples])
+    stylo_test_mat = np.array([ex[1] for ex in test_examples])
 
     # Hyperparams
-    num_epochs = 20
+    stylo_len = np.shape(stylo_mat)[1]
+    num_epochs = 50
     batch_size = 10
     filter_widths = [3, 4, 5]
     filters_per_region = 100
     num_filters = filters_per_region * len(filter_widths)
 
     # Network
-    stylo_inputs = tf.placeholder(tf.float32, [None, 32])
+    stylo_inputs = tf.placeholder(tf.float32, [None, stylo_len])
     inputs = tf.placeholder(tf.float32, [None, seq_max_len, embedding_size])
     conv1_inputs = tf.expand_dims(inputs, -1)
     dropout_rate = tf.placeholder(tf.float32)
@@ -107,7 +108,7 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
     feature_vector = tf.nn.dropout(feature_vector, dropout_rate)
     feature_vector = tf.concat([feature_vector, stylo_inputs], 1)
 
-    W = tf.get_variable("W", [num_filters + 32, num_classes], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+    W = tf.get_variable("W", [num_filters + stylo_len, num_classes], initializer=tf.contrib.layers.xavier_initializer(seed=0))
     probs = tf.nn.softmax(tf.tensordot(feature_vector, W, 1))
     one_best = tf.argmax(probs, axis=1)
 
@@ -141,14 +142,32 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
             print "Loss for iteration " + repr(i) + ": " + repr(loss_this_iter)
 
             preds = []
+            correct_r_3 = 0.0
+            correct_r_5 = 0.0 
             for ex_idx in xrange(len(test_examples)):
-                [_, pred_this_instance] = sess.run([probs, one_best], feed_dict={inputs: [test_mat[ex_idx]],
+                [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict={inputs: [test_mat[ex_idx]],
                                                                                  stylo_inputs: [stylo_test_mat[ex_idx]],
                                                                                  dropout_rate: 1.0})
                 preds.append(pred_this_instance[0])
 
-            print "Dev Accuracy: " + str(accuracy_score(test_labels, preds))
+                lps = [(i, probs_this_instance[0][i]) for i in xrange(len(probs_this_instance[0]))]
+                slps = sorted(lps, key=lambda tup: tup[1], reverse=True)
+                top_3 = [slps[t][0] for t in range(3)]
+                top_5 = [slps[t][0] for t in range(5)]
+
+                if test_labels[ex_idx] in top_3:
+                    correct_r_3 += 1.0
+                    correct_r_5 += 1.0
+                elif test_labels[ex_idx] in top_5:
+                    correct_r_5 += 1.0
+
+            print "Dev Accuracy, Recall 1: " + str(accuracy_score(test_labels, preds))
+            print "Dev Accuracy, Recall 3: " + str(correct_r_3/ len(test_labels))
+            print "Dev Accuracy, Recall 5: " + str(correct_r_5/ len(test_labels))
             print confusion_matrix(test_labels, preds)
+
+    
+
 
 
 def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):

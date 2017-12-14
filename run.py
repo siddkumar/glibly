@@ -15,7 +15,7 @@ embedding_dim = 300
 percent_training = 0.9
 WORD_VEC_FILE = '/Users/quinnmac/Documents/00-Documents-Archive/College Senior Year/'\
                 'Semester 2/NLP/Final Project/GoogleNews-vectors-negative300.bin'
-WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/GoogleNews-vectors-negative300.bin'
+# WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/GoogleNews-vectors-negative300.bin'
 
 
 def run_experiment(model_name, balance_training=True):
@@ -63,11 +63,11 @@ def run_experiment(model_name, balance_training=True):
                 num_unks += 1.0
             num_tokens += 1.0
 
-        # Compute Stylometric Features
+        # Compute stylometric features
         stylometric_features = []
-        scale = float(len(orig_sentence))
-        for c in string.punctuation:
-            stylometric_features.append(orig_sentence.count(c) / scale)
+        punct = string.punctuation + string.ascii_uppercase
+        for c in punct:
+            stylometric_features.append(1 if c in orig_sentence else 0)
 
         examples.append([sentence_vectors, stylometric_features])
         labels.append(clusters[label])
@@ -76,6 +76,7 @@ def run_experiment(model_name, balance_training=True):
     wvModel = None  # save memory
     num_examples = len(examples)
     num_labels = len(set(clusters.values()))
+    print('Stylometric feature length: ' + str(len(examples[0][1])))
     print('Number of labels: ' + str(num_labels))
     print('Number of examples: ' + str(num_examples))
     print('Guessing Most Common Label: ' + str(labels.count(max(set(labels), key=labels.count)) / num_examples))
