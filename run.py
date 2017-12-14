@@ -17,16 +17,21 @@ percent_training = 0.9
 WORD_VEC_FILE = '/Users/quinnmac/Documents/00-Documents-Archive/College Senior Year/'\
                 'Semester 2/NLP/Final Project/GoogleNews-vectors-negative300.bin'
 WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/GoogleNews-vectors-negative300.bin'
-# WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/trained_vectors.bin'
+
 
 def run_experiment(model_name):
     with open(filename) as input_file:
         counter = get_counter(filename)
         data = input_file.readlines()
 
-    min_cutoff = 10
-    filtered_counter = {key: value for key, value in counter.iteritems() if value > min_cutoff}
-    label_set = filtered_counter.keys()
+    clusters = {}
+    for i, l in enumerate(open('clusters.txt')):
+        for w in l.split():
+            clusters[w] = i
+
+    # min_cutoff = 10
+    # filtered_counter = {key: value for key, value in counter.iteritems() if value > min_cutoff}
+    # label_set = filtered_counter.keys()
 
     examples = []
     labels = []
@@ -38,7 +43,7 @@ def run_experiment(model_name):
     num_unks = 0.0
     for i, item in enumerate(data):
         label, sentence = item.split('\t')
-        if label not in filtered_counter:
+        if label not in clusters:
             continue
 
         orig_sentence = sentence.decode('utf-8')
@@ -66,12 +71,12 @@ def run_experiment(model_name):
             stylometric_features.append(orig_sentence.count(c) / scale)
 
         examples.append([sentence_vectors, stylometric_features])
-        labels.append(label_set.index(label))
+        labels.append(clusters[label])
         seq_lens.append(len(tokens))
 
     wvModel = None  # save memory
     num_examples = len(examples)
-    num_labels = len(label_set)
+    num_labels = len(set(clusters.values()))
     print('Number of labels: ' + str(num_labels))
     print('Number of examples: ' + str(num_examples))
     print('Guessing Most Common Label: ' + str(labels.count(max(set(labels), key=labels.count)) / num_examples))
