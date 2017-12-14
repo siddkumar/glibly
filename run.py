@@ -11,17 +11,16 @@ import re
 import numpy as np
 
 filename = 'adverbs.txt'
-max_sequence_len = 60
 embedding_dim = 300
 percent_training = 0.9
 WORD_VEC_FILE = '/Users/quinnmac/Documents/00-Documents-Archive/College Senior Year/'\
                 'Semester 2/NLP/Final Project/GoogleNews-vectors-negative300.bin'
-WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/GoogleNews-vectors-negative300.bin'
+# WORD_VEC_FILE = '/Users/skumar/Documents/proj/nlp/GoogleNews-vectors-negative300.bin'
 
 
-def run_experiment(model_name):
+def run_experiment(model_name, balance_training=True):
     with open(filename) as input_file:
-        counter = get_counter(filename)
+        # counter = get_counter(filename)
         data = input_file.readlines()
 
     clusters = {}
@@ -32,7 +31,6 @@ def run_experiment(model_name):
     # min_cutoff = 10
     # filtered_counter = {key: value for key, value in counter.iteritems() if value > min_cutoff}
     # label_set = filtered_counter.keys()
-    filtered_counter = {}
 
     examples = []
     labels = []
@@ -65,32 +63,20 @@ def run_experiment(model_name):
                 num_unks += 1.0
             num_tokens += 1.0
 
-        # Compute Stylometric Features
+        # Compute stylometric features
         stylometric_features = []
-        scale = float(len(orig_sentence))
         punct = string.punctuation + string.ascii_uppercase
-        # punct = '?-!.'
         for c in punct:
-            # stylometric_features.append(orig_sentence.count(c) / scale)
             stylometric_features.append(1 if c in orig_sentence else 0)
 
-        # stylometric_features.append(scale)
-        # s = 0.0
-        # for tok in tokens:
-            # s += len(tok)
-        # stylometric_features.append(s/ num_tokens)
-
-        examples.append([sentence_vectors, stylometric_features])   
+        examples.append([sentence_vectors, stylometric_features])
         labels.append(clusters[label])
         seq_lens.append(len(tokens))
-        if clusters[label] in filtered_counter:
-            filtered_counter[clusters[label]] += 1
-        else:
-            filtered_counter[clusters[label]] = 1
 
     wvModel = None  # save memory
     num_examples = len(examples)
     num_labels = len(set(clusters.values()))
+    print('Stylometric feature length: ' + str(len(examples[0][1])))
     print('Number of labels: ' + str(num_labels))
     print('Number of examples: ' + str(num_examples))
     print('Guessing Most Common Label: ' + str(labels.count(max(set(labels), key=labels.count)) / num_examples))
@@ -105,21 +91,32 @@ def run_experiment(model_name):
     np.random.shuffle(shuffled_idxs)
     num_training = int(percent_training*num_examples)
 
-    train_idxs = shuffled_idxs[:num_training]    
+    train_idxs = shuffled_idxs[:num_training]
 
-    label_set = filtered_counter.keys()
-    max_label_value = max(filtered_counter.values())
-    print(len(train_idxs))
-    more_idxs = []
-    for i in train_idxs:
-        num_append = int(max_label_value / filtered_counter[label_set[labels[i]]]) - 1
-        more_idxs.extend([i] * num_append)
-    train_idxs.extend(more_idxs)
-    print(len(train_idxs))
+    if balance_training:
+        print('Num training examples unbalanced: ' + str(len(train_idxs)))
+        train_counter = {}
+        for i in train_idxs:
+            label = labels[i]
+            train_counter[label] = train_counter.get(label, 0.0) + 1.0
+
+        max_label_value = max(train_counter.values())
+        print('Max training label frequency: ' + str(max_label_value))
+        more_idxs = []
+        for i in train_idxs:
+            num_label = train_counter[labels[i]]
+            factor = int(max_label_value / num_label)
+            num_append = factor - 1
+            plus_one = np.random.random_sample() < ((max_label_value - (num_label * factor)) / num_label)
+            if plus_one:
+                num_append += 1
+            more_idxs.extend([i] * num_append)
+        train_idxs.extend(more_idxs)
+        print('Num training examples balanced: ' + str(len(train_idxs)))
+        print('Should be close to: ' + str(max_label_value * num_labels))
 
     train_examples = [examples[i] for i in train_idxs]
     train_labels = [labels[i] for i in train_idxs]
-
 
     test_idxs = shuffled_idxs[num_training:]
     test_examples = [examples[i] for i in test_idxs]

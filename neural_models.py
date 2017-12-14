@@ -74,16 +74,15 @@ def generate_batches(examples, labels, batch_size):
 
 def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
     seq_max_len = 20
-    train_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
+    train_mat = np.array([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
     train_labels_mat = np.array(train_labels)
-    test_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
-    stylo_mat = np.asarray([ex[1] for ex in train_examples])
-    stylo_test_mat = np.asarray([ex[1] for ex in test_examples])
+    test_mat = np.array([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
+    stylo_mat = np.array([ex[1] for ex in train_examples])
+    stylo_test_mat = np.array([ex[1] for ex in test_examples])
 
     # Hyperparams
     stylo_len = np.shape(stylo_mat)[1]
-    print "Stylometric Feature Length", stylo_len
-    num_epochs = 20
+    num_epochs = 50
     batch_size = 10
     filter_widths = [3, 4, 5]
     filters_per_region = 100
