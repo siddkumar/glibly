@@ -32,6 +32,7 @@ def run_experiment(model_name):
     # min_cutoff = 10
     # filtered_counter = {key: value for key, value in counter.iteritems() if value > min_cutoff}
     # label_set = filtered_counter.keys()
+    filtered_counter = {}
 
     examples = []
     labels = []
@@ -67,12 +68,25 @@ def run_experiment(model_name):
         # Compute Stylometric Features
         stylometric_features = []
         scale = float(len(orig_sentence))
-        for c in string.punctuation:
-            stylometric_features.append(orig_sentence.count(c) / scale)
+        punct = string.punctuation + string.ascii_uppercase
+        # punct = '?-!.'
+        for c in punct:
+            # stylometric_features.append(orig_sentence.count(c) / scale)
+            stylometric_features.append(1 if c in orig_sentence else 0)
 
-        examples.append([sentence_vectors, stylometric_features])
+        # stylometric_features.append(scale)
+        # s = 0.0
+        # for tok in tokens:
+            # s += len(tok)
+        # stylometric_features.append(s/ num_tokens)
+
+        examples.append([sentence_vectors, stylometric_features])   
         labels.append(clusters[label])
         seq_lens.append(len(tokens))
+        if clusters[label] in filtered_counter:
+            filtered_counter[clusters[label]] += 1
+        else:
+            filtered_counter[clusters[label]] = 1
 
     wvModel = None  # save memory
     num_examples = len(examples)
@@ -91,9 +105,21 @@ def run_experiment(model_name):
     np.random.shuffle(shuffled_idxs)
     num_training = int(percent_training*num_examples)
 
-    train_idxs = shuffled_idxs[:num_training]
+    train_idxs = shuffled_idxs[:num_training]    
+
+    label_set = filtered_counter.keys()
+    max_label_value = max(filtered_counter.values())
+    print(len(train_idxs))
+    more_idxs = []
+    for i in train_idxs:
+        num_append = int(max_label_value / filtered_counter[label_set[labels[i]]]) - 1
+        more_idxs.extend([i] * num_append)
+    train_idxs.extend(more_idxs)
+    print(len(train_idxs))
+
     train_examples = [examples[i] for i in train_idxs]
     train_labels = [labels[i] for i in train_idxs]
+
 
     test_idxs = shuffled_idxs[num_training:]
     test_examples = [examples[i] for i in test_idxs]

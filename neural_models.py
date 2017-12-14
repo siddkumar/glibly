@@ -67,7 +67,7 @@ def generate_batches(examples, labels, batch_size):
     return batches
 
 def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
-    seq_max_len = 60
+    seq_max_len = 20
     train_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
     train_labels_mat = np.array(train_labels)
     test_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
@@ -75,14 +75,16 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
     stylo_test_mat = np.asarray([ex[1] for ex in test_examples])
 
     # Hyperparams
-    num_epochs = 20
-    batch_size = 100
+    num_epochs = 50
+    batch_size = 10
     filter_widths = [3, 4, 5]
     filters_per_region = 100
     num_filters = 300
+    stylo_len = np.shape(stylo_mat)[1]
+    print "Stylometric Feature Length", stylo_len
 
     # Network
-    stylo_inputs = tf.placeholder(tf.float32, [None, 32])
+    stylo_inputs = tf.placeholder(tf.float32, [None, stylo_len])
     inputs = tf.placeholder(tf.float32, [None, seq_max_len, embedding_size])
     conv1_inputs = tf.expand_dims(inputs, -1)
     dropout_rate = tf.placeholder(tf.float32)
@@ -101,7 +103,7 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
     feature_vector = tf.nn.dropout(feature_vector, dropout_rate)
     feature_vector = tf.concat([feature_vector, stylo_inputs], 1)
 
-    W = tf.get_variable("W", [num_filters + 32, num_classes], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+    W = tf.get_variable("W", [num_filters + stylo_len, num_classes], initializer=tf.contrib.layers.xavier_initializer(seed=0))
     probs = tf.nn.softmax(tf.tensordot(feature_vector, W, 1))
     one_best = tf.argmax(probs, axis=1)
 
@@ -147,10 +149,20 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
                 if pred_this_instance[0] == test_labels[ex_idx]:
                     correct += 1.0
 
+                # print probs_this_instance
+                # print '---'
+                lps = [(i, probs_this_instance[0][i]) for i in xrange(len(probs_this_instance[0]))]
+                slps = sorted(lps, key=lambda tup: tup[1], reverse=True)
+                top_3 = [slps[t][0] for t in range(3)]
+                top_5 = [slps[t][0] for t in range(3)]
+                print pred_this_instance, top_3, top_5
+
             print "Dev Accuracy:", correct/num_test_examples
             for row in xrange(num_classes):
                 r = [confusion[row][col] for col in xrange(num_classes)]
                 print r
+
+
 
 def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
 

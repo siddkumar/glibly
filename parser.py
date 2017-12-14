@@ -140,16 +140,16 @@ if __name__ == '__main__':
                 else:
                     pull_adverbs(input_filename, adverbs_fp, full_context=False)
 
-        for file in os.listdir('dialogs-edited'):
-            os.remove(join('dialogs-edited', file))
-        for genre in os.listdir('dialogs'):
-            for movie in os.listdir(os.path.join('dialogs', genre)):
-                input_filename = join('dialogs', genre, movie)
-                output_filename = join('dialogs-edited', movie)
-                if movie in os.listdir('dialogs-edited'):
-                    continue
-                edit_movie(input_filename, output_filename)
-                pull_adverbs(output_filename, adverbs_fp, brackets=False, full_context=False)
+        # for file in os.listdir('dialogs-edited'):
+        #     os.remove(join('dialogs-edited', file))
+        # for genre in os.listdir('dialogs'):
+        #     for movie in os.listdir(os.path.join('dialogs', genre)):
+        #         input_filename = join('dialogs', genre, movie)
+        #         output_filename = join('dialogs-edited', movie)
+        #         if movie in os.listdir('dialogs-edited'):
+        #             continue
+        #         edit_movie(input_filename, output_filename)
+        #         pull_adverbs(output_filename, adverbs_fp, brackets=False, full_context=False)
                 
 
 
