@@ -4,6 +4,8 @@ adverbs.txt
 adverbs*.txt
 dialogs/
 dialogs-edited/
+pairwise*
+relativize*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
