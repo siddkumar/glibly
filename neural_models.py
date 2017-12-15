@@ -143,7 +143,7 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
 
             preds = []
             correct_r_3 = 0.0
-            correct_r_5 = 0.0 
+            correct_r_5 = 0.0
             for ex_idx in xrange(len(test_examples)):
                 [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict={inputs: [test_mat[ex_idx]],
                                                                                  stylo_inputs: [stylo_test_mat[ex_idx]],
@@ -162,41 +162,41 @@ def cnn(train_examples, train_labels, test_examples, test_labels, num_classes, e
                     correct_r_5 += 1.0
 
             print "Dev Accuracy, Recall 1: " + str(accuracy_score(test_labels, preds))
-            print "Dev Accuracy, Recall 3: " + str(correct_r_3/ len(test_labels))
-            print "Dev Accuracy, Recall 5: " + str(correct_r_5/ len(test_labels))
+            print "Dev Accuracy, Recall 3: " + str(correct_r_3/len(test_labels))
+            print "Dev Accuracy, Recall 5: " + str(correct_r_5/len(test_labels))
             print confusion_matrix(test_labels, preds)
-
-    
-
 
 
 def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, embedding_size):
-
-    seq_max_len = 60
-    train_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
+    seq_max_len = 20
+    train_mat = np.array([pad_to_length(ex[0], seq_max_len) for ex in train_examples])
     train_labels_mat = np.array(train_labels)
-    test_mat = np.asarray([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
-    stylo_mat = np.asarray([ex[1] for ex in train_examples])
-    stylo_test_mat = np.asarray([ex[1] for ex in test_examples])
+    test_mat = np.array([pad_to_length(ex[0], seq_max_len) for ex in test_examples])
+    stylo_mat = np.array([ex[1] for ex in train_examples])
+    stylo_test_mat = np.array([ex[1] for ex in test_examples])
+    stylo_len = np.shape(stylo_mat)[1]
 
     # Hyperparams
-    num_epochs = 10
+    num_epochs = 50
     batch_size = 10
-    hidden_size = 200
-    
+    hidden_size = 300
+
     # Network
-    stylo_inputs = tf.placeholder(tf.float32, [None, 32])
+    stylo_inputs = tf.placeholder(tf.float32, [None, stylo_len])
     inputs = tf.placeholder(tf.float32, [None, seq_max_len, embedding_size])
-    dropout_rate = tf.placeholder(tf.float32)
+    seq_inputs = tf.split(inputs, seq_max_len, 1)
+    seq_inputs = [tf.squeeze(t, 1) for t in seq_inputs]
 
-    lstmCell = tf.contrib.rnn.BasicLSTMCell(hidden_size)
-    outputs, state = tf.nn.dynamic_rnn(lstmCell, inputs, dtype=tf.float32)
+    lstm_cell = tf.contrib.rnn.BasicLSTMCell(hidden_size)
+    b_size = tf.placeholder(tf.int32, [])
+    init_state = lstm_cell.zero_state(b_size, tf.float32)
 
-    # bias = tf.get_variable("bias", tf.constant(0.1, shape=[num_classes]))
-    # outputs = tf.transpose(outputs, [1, 0, 2])
-    # last = tf.gather(outputs, int(outputs.get_shape()[0]) - 1)
-    weight = tf.get_variable("W", [hidden_size, num_classes], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-    prediction = tf.tensordot(state.c, weight, 1)
+    outputs, state = tf.nn.static_rnn(lstm_cell, seq_inputs, dtype=tf.float32, initial_state=init_state)
+    outputs = outputs[-1]
+
+    W = tf.get_variable("W", [hidden_size + stylo_len, num_classes], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+    hidden = tf.concat([outputs, stylo_inputs], 1)
+    prediction = tf.tensordot(hidden, W, 1)
     probs = tf.nn.softmax(prediction)
     one_best = tf.argmax(probs, axis=1)
 
@@ -208,7 +208,7 @@ def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, 
     global_step = tf.contrib.framework.get_or_create_global_step()
     opt = tf.train.AdamOptimizer()
     train_op = opt.minimize(loss, global_step=global_step)
-    
+
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         tf.set_random_seed(0)
@@ -222,19 +222,33 @@ def lstm(train_examples, train_labels, test_examples, test_labels, num_classes, 
                 [_, loss_this_instance] = sess.run([train_op, loss], feed_dict={inputs: example_batch,
                                                                                 stylo_inputs: stylo_batches[j][0],
                                                                                 label: label_batch,
-                                                                                dropout_rate: 0.65})
+                                                                                b_size: 10})
                 j += 1
                 step_idx += 1
                 loss_this_iter += loss_this_instance
             print "Loss for iteration " + repr(i) + ": " + repr(loss_this_iter)
 
-            correct = 0.0
-            num_test_examples = len(test_examples)
-            for ex_idx in xrange(num_test_examples):
-                [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict = {inputs: [test_mat[ex_idx]], 
-                                                                                                     stylo_inputs: [stylo_test_mat[ex_idx]],
-                                                                                                     dropout_rate: 1.0})
-                if pred_this_instance[0] == test_labels[ex_idx]:
-                    correct += 1.0
+            preds = []
+            correct_r_3 = 0.0
+            correct_r_5 = 0.0
+            for ex_idx in xrange(len(test_examples)):
+                [probs_this_instance, pred_this_instance] = sess.run([probs, one_best], feed_dict={inputs: [test_mat[ex_idx]],
+                                                                                 stylo_inputs: [stylo_test_mat[ex_idx]],
+                                                                                 b_size: 1})
+                preds.append(pred_this_instance[0])
 
-            print "Dev Accuracy:", correct/num_test_examples
+                lps = [(i, probs_this_instance[0][i]) for i in xrange(len(probs_this_instance[0]))]
+                slps = sorted(lps, key=lambda tup: tup[1], reverse=True)
+                top_3 = [slps[t][0] for t in range(3)]
+                top_5 = [slps[t][0] for t in range(5)]
+
+                if test_labels[ex_idx] in top_3:
+                    correct_r_3 += 1.0
+                    correct_r_5 += 1.0
+                elif test_labels[ex_idx] in top_5:
+                    correct_r_5 += 1.0
+
+            print "Dev Accuracy, Recall 1: " + str(accuracy_score(test_labels, preds))
+            print "Dev Accuracy, Recall 3: " + str(correct_r_3/len(test_labels))
+            print "Dev Accuracy, Recall 5: " + str(correct_r_5/len(test_labels))
+            print confusion_matrix(test_labels, preds)
